@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Serilog;
+using TradingBotCore;
 
-namespace TradingBotWPF.Entities
+namespace TradingBotCore.Entities
 {
-    // Erweiterte Thread-sichere Position-Verwaltung mit Average-Down
+    // Erweiterte Thread-sichere Position-Verwaltung mit Average-
     public class TradingPosition
     {
         public string Symbol { get; set; }
@@ -22,13 +24,17 @@ namespace TradingBotWPF.Entities
         public int AverageDownCount { get; set; }
         public List<AverageDownEntry> AverageDownHistory { get; set; }
         public decimal NextAverageDownTrigger { get; set; }
-        public bool AverageDownEnabled { get; set; }
+        public bool AverageDownEnabled { get; set; } = Login.AverageDownEnabled;
         public DateTime LastAverageDownTime { get; set; }
+
+        private decimal _currentMarketPrice = 0;
+        private bool _isPriceRising = false;
+        private DateTime _lastPriceUpdate = DateTime.MinValue;
 
         public TradingPosition()
         {
             AverageDownHistory = new List<AverageDownEntry>();
-            AverageDownEnabled = true;
+            AverageDownEnabled = Login.AverageDownEnabled;
             AverageDownCount = 0;
             LastAverageDownTime = DateTime.MinValue;
         }
@@ -42,29 +48,49 @@ namespace TradingBotWPF.Entities
             OriginalPurchasePrice = (investedAmount / (decimal)volume);
             TotalInvestedAmount = investedAmount;
 
-            // Trigger für ersten Average-Down bei 1% Verlust
-            NextAverageDownTrigger = OriginalPurchasePrice * 0.98m;
+            // Trigger für ersten Average-Down bei 2% Verlust
+            NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * 0.02m);
 
             Log.Information($"Position initialisiert für {Symbol}: {price:F6} EUR, Volume: {volume:F4}, Trigger: {NextAverageDownTrigger:F6}");
+        }
+
+        public decimal CurrentMarketPrice
+        {
+            get => _currentMarketPrice;
+            set
+            {
+                var oldPrice = _currentMarketPrice;
+                _currentMarketPrice = value;
+                _isPriceRising = value > oldPrice && oldPrice > 0;
+                _lastPriceUpdate = DateTime.UtcNow;
+                notifiyUI();
+            }
+        }
+
+        public virtual void notifiyUI()
+        {
         }
 
         // Prüft ob Average-Down ausgelöst werden soll
         public bool ShouldTriggerAverageDown(decimal currentPrice)
         {
             if (!AverageDownEnabled || AverageDownCount >= 3) // Maximal 3 Average-Downs
+            {
+                Log.Information($"Average-Down für {Symbol} deaktiviert oder Limit erreicht.");
                 return false;
+            }
 
             // Mindestabstand zwischen Average-Downs (5 Minuten)
             if (DateTime.UtcNow - LastAverageDownTime < TimeSpan.FromMinutes(5))
+            {
+                Log.Information($"Average-Down für {Symbol} übersprungen: Wartezeit von 5 Minuten nicht erreicht.");
                 return false;
+            }
 
             // Prüfe ob Preis unter Trigger gefallen ist
             bool shouldTrigger = currentPrice <= NextAverageDownTrigger;
 
-            if (shouldTrigger)
-            {
-                Log.Information($"Average-Down Trigger für {Symbol}: Aktuell {currentPrice:F6} <= Trigger {NextAverageDownTrigger:F6}");
-            }
+            Log.Information($"Average-Down Trigger für {Symbol}: Aktuell {currentPrice:F6} <= Trigger {NextAverageDownTrigger:F6} {shouldTrigger}");
 
             return shouldTrigger;
         }
@@ -164,7 +190,7 @@ namespace TradingBotWPF.Entities
             if (greenRatio == 0)
                 return currentPrice > High; // Mindestens 0.5% Gewinn
             else
-                return currentPrice > High / (decimal)(1.005 * greenRatio); // Mindestens 0.5% Gewinn
+                return currentPrice > (High / 1.005m) * (decimal)(1 + greenRatio); // Mindestens 0.5% Gewinn
         }
 
         // Deaktiviert weitere Average-Downs

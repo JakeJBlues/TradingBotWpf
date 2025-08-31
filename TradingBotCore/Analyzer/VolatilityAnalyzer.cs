@@ -2,6 +2,7 @@
 using OKX.Net.Objects.Market;
 using System;
 using System.Linq;
+using TradingBotCore;
 
 public class VolatilityCheckResult
 {
@@ -30,7 +31,8 @@ public class VolatilityAnalyzer
     public VolatilityCheckResult CheckVolatilityConditions(
         OKXKline[] klines,
         decimal minVolatilityPercent = 1.0m,
-        decimal maxDistributionImbalance = 0.3m)
+        decimal maxDistributionImbalance = 0.3m,
+        OKXKline[]? confirmationKlines = default)
     {
         if (klines == null || klines.Length < 2)
             throw new ArgumentException("Mindestens 2 Klines erforderlich");
@@ -51,18 +53,32 @@ public class VolatilityAnalyzer
         // 2. Verteilungsprüfung: Kerzen über/unter Durchschnitt
         var candlesAbove = 0;
         var candlesBelow = 0;
-        var candlesAt = 0;
 
-        foreach (var kline in klines.OrderByDescending(k => k.Time).Take(5))
+        foreach (var kline in klines.OrderByDescending(k => k.Time).Take(Login.VolatilityKindels))
         {
             // Verwende den Schlusskurs für die Verteilungsanalyse
-            if (kline.ClosePrice >= kline.OpenPrice)
+            if (kline.ClosePrice > kline.OpenPrice)
                 candlesAbove++;
-            else
+            else if (kline.ClosePrice < kline.OpenPrice)
                 candlesBelow++;
         }
 
-        var candlesRaise = candlesAbove > candlesBelow;
+        var candlesConfimationAbove = 0;
+        var candlesConfimationBelow = 0;
+
+        if (confirmationKlines != null)
+        {
+            foreach (var kline in confirmationKlines.OrderByDescending(k => k.Time).Take(Login.VolatilityKindels))
+            {
+                // Verwende den Schlusskurs für die Verteilungsanalyse
+                if (kline.ClosePrice > kline.OpenPrice)
+                    candlesConfimationAbove++;
+                else if (kline.ClosePrice < kline.OpenPrice)
+                    candlesConfimationBelow++;
+            }
+        }
+
+        var candlesRaise = candlesAbove >= (Login.VolatilityKindels / 2) && Login.VolalityConfirmation ? (candlesConfimationAbove >= candlesConfimationBelow) : true;
         result.MeetsDistributionRequirement = candlesRaise;
         return result;
     }
@@ -70,9 +86,9 @@ public class VolatilityAnalyzer
     /// <summary>
     /// Vereinfachte Methode die nur true/false zurückgibt
     /// </summary>
-    public bool HasSufficientVolatility(OKXKline[] klines, decimal minVolatilityPercent = 1.0m, decimal maxDistributionImbalance = 0.3m)
+    public bool HasSufficientVolatility(OKXKline[] klines, decimal minVolatilityPercent = 0.5m, decimal maxDistributionImbalance = 0.3m, OKXKline[]? confirmationKlines = default)
     {
-        var result = CheckVolatilityConditions(klines, minVolatilityPercent, maxDistributionImbalance);
+        var result = CheckVolatilityConditions(klines, minVolatilityPercent, maxDistributionImbalance, confirmationKlines);
         return result.MeetsVolatilityRequirement && result.MeetsDistributionRequirement;
     }
 }

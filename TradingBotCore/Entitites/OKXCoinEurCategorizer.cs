@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace TradingBotWPF.Entities
+namespace TradingBotCore.Entities
 {
     /// <summary>
     /// Kategorisiert OKX EUR-Coins in die vorhandenen SymbolCategory-Kategorien

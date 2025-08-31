@@ -2,9 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static TradingBotWPF.Helper.ProtectedProfitTracker;
+using static TradingBotCore.Helper.ProtectedProfitTracker;
 
-namespace TradingBotWPF.Helper
+namespace TradingBotCore.Helper
 {
     /// <summary>
     /// Erweiterte Profit-Tracker mit striktem Profit-Schutz

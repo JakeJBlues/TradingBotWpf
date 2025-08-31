@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Serilog;
-using TradingBotWPF.Interfaces;
+using TradingBotCore.Interfaces;
 
-namespace TradingBotWPF.Strategies
+namespace TradingBotCore.Strategies
 {
     public class EmaBollingerStrategy : ITradingStrategy
     {

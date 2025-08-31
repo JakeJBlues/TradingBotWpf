@@ -2,7 +2,7 @@
 using System.Linq;
 using Serilog;
 
-namespace TradingBotWPF.Manager
+namespace TradingBotCore.Manager
 {
     // Interface für Trading-Strategien
     // NEU: Blacklist-Manager für unerwünschte Trading-Symbole

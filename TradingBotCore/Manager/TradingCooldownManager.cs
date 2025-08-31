@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Serilog;
 
-namespace TradingBotWPF.Manager
+namespace TradingBotCore.Manager
 {
     // Thread-sichere Cooldown-Verwaltung mit Verkaufssperre
     public class TradingCooldownManager

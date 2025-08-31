@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace TradingBotWPF.Helper
+namespace TradingBotCore.Helper
 {
     // Dummy AutoTrimStack und EmaBollingerStrategy für Kompatibilität
     public class AutoTrimStack<T>

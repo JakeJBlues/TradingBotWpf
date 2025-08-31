@@ -17,8 +17,9 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using TradingBot;
-using TradingBotWPF.Helper;
-using TradingBotWPF.Manager;
+using TradingBotCore;
+using TradingBotCore.Helper;
+using TradingBotCore.Manager;
 
 namespace TradingBotWPF
 {
@@ -238,6 +239,10 @@ namespace TradingBotWPF
                         position.CurrentPrice = newPrice;
                     });
                 }
+                else
+                {
+                    await Task.Delay(Login.NoSuccessDelay);
+                }
             }
             catch (Exception ex)
             {
@@ -325,6 +330,7 @@ namespace TradingBotWPF
             CooldownsListView.ItemsSource = _cooldowns;
             BlacklistItemsListView.ItemsSource = _blacklistItems;
 
+            Title = $"TradingBot WPF {Login.FilePreSuffix} - Version {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}";
             // Setup Logging
             SetupLogging();
 
@@ -352,6 +358,11 @@ namespace TradingBotWPF
         {
             Dispatcher.BeginInvoke(() =>
             {
+                if (LogTextBox.LineCount > 150)
+                {
+                    LogTextBox.Clear();
+                    LogTextBox.AppendText("🗑️ Log zu groß, wurde gelöscht\n");
+                }
                 var timestamp = DateTime.Now.ToString("HH:mm:ss");
                 LogTextBox.AppendText($"[{timestamp}] {message}\n");
 

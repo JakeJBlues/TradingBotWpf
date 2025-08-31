@@ -60,10 +60,12 @@
 
   <ItemGroup>
     <Folder Include="logs\" />
-    <Folder Include="Interfaces\" />
     <Folder Include="DTO\" />
-    <Folder Include="Helper\" />
     <Folder Include="Resources\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TradingBotCore\TradingBotCore.csproj" />
   </ItemGroup>
 
   <!-- Post-build events -->

@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36212.18
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingBotWPF", "TradingBotWPF\TradingBotWPF.csproj", "{F9233665-3098-46DC-9CE0-CFC1234E7D51}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingBotCore", "TradingBotCore\TradingBotCore.csproj", "{956A6F65-77FA-48A0-B5CA-6816389688DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{F9233665-3098-46DC-9CE0-CFC1234E7D51}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F9233665-3098-46DC-9CE0-CFC1234E7D51}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F9233665-3098-46DC-9CE0-CFC1234E7D51}.Release|Any CPU.Build.0 = Release|Any CPU
+		{956A6F65-77FA-48A0-B5CA-6816389688DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{956A6F65-77FA-48A0-B5CA-6816389688DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{956A6F65-77FA-48A0-B5CA-6816389688DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{956A6F65-77FA-48A0-B5CA-6816389688DD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

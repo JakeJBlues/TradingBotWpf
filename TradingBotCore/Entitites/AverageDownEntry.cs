@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TradingBotWPF.Entities
+namespace TradingBotCore.Entities
 {
     // Hilfsklasse für Average-Down Historie
     public class AverageDownEntry

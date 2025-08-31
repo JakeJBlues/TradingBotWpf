@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Serilog;
+using TradingBotCore.Entities;
 
-namespace TradingBotWPF.Helper
+namespace TradingBotCore.Helper
 {
     // Erweiterte Profit-Tracking-Klasse mit strikter Trading-Budget-Kontrolle
     public class ProfitTracker
@@ -136,7 +137,7 @@ namespace TradingBotWPF.Helper
             }
         }
 
-        public decimal CalculateExpectedProfit(List<EnhancedTradingPosition> positions, Func<string, Task<decimal>> getCurrentPrice)
+        public decimal CalculateExpectedProfit(List<TradingPosition> positions, Func<string, Task<decimal>> getCurrentPrice)
         {
             decimal totalExpectedProfitEUR = 0;
 
@@ -162,7 +163,7 @@ namespace TradingBotWPF.Helper
             return totalExpectedProfitEUR;
         }
 
-        public void LogProfitStatus(decimal currentBalance, List<EnhancedTradingPosition> positions = null, Func<string, Task<decimal>> getCurrentPrice = null)
+        public void LogProfitStatus(decimal currentBalance, List<TradingPosition> positions = null, Func<string, Task<decimal>> getCurrentPrice = null)
         {
             decimal expectedProfit = 0;
             if (positions != null && getCurrentPrice != null && positions.Any())

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace TradingBotWPF.Interfaces
+namespace TradingBotCore.Interfaces
 {
     public interface ITradingStrategy
     {

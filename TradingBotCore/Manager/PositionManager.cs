@@ -4,15 +4,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Serilog;
-using TradingBotWPF.Entities;
+using TradingBotCore.Entities;
 
-namespace TradingBotWPF.Manager
+namespace TradingBotCore.Manager
 {
     // PositionManager für nur eine Position pro Krypto
     public class PositionManager
     {
-        private readonly ConcurrentDictionary<string, EnhancedTradingPosition> _positions = new();
-        private DateTime LastTransaction { get; set; } = DateTime.MinValue;
+        public ConcurrentDictionary<string, TradingPosition> _positions { get; set; } = new();
+        public DateTime LastTransaction { get; set; } = DateTime.MinValue;
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
 
         // Prüft ob bereits eine Position für das Asset existiert
@@ -31,7 +31,7 @@ namespace TradingBotWPF.Manager
         }
 
         // AddOrUpdate statt Add - überschreibt existierende Position
-        public void AddOrUpdatePosition(EnhancedTradingPosition position)
+        public void AddOrUpdatePosition(TradingPosition position)
         {
             var asset = ExtractAssetFromSymbol(position.Symbol);
             _lock.EnterWriteLock();
@@ -75,7 +75,7 @@ namespace TradingBotWPF.Manager
             }
         }
 
-        public List<EnhancedTradingPosition> GetPositions()
+        public List<TradingPosition> GetPositions()
         {
             _lock.EnterReadLock();
             try
@@ -148,34 +148,34 @@ namespace TradingBotWPF.Manager
 
         public double CalculateGreenRatio()
         {
-            _lock.EnterReadLock();
-            try
+            if (_positions.Count == 0)
             {
-                if (_positions.Count == 0) return 0;
-                if (NoActionRecorded())
-                {
-                    return 0.003;
-                }
-                var greenCount = _positions.Values.Count(p => p.CurrentMarketPrice >= p.OriginalPurchasePrice);
-                var greenRatio = (double)greenCount / _positions.Count * 100;
-                if (greenRatio < 0.25)
-                {
-                    return 0.004;
-                }
-                if (greenRatio < 0.5)
-                {
-                    return 0.005;
-                }
-                if (greenRatio < 0.75)
-                {
-                    return 0.0075;
-                }
-                return 0.01;
+                return 0;
             }
-            finally
+            if (NoActionRecorded())
             {
-                _lock.ExitReadLock();
+                return 0.003;
             }
+            if (_positions.Count < 10)
+            {
+                return 0.005;
+            }
+            var greenCount = _positions.Values.Count(p => p.CurrentMarketPrice >= p.OriginalPurchasePrice);
+            var greenRatio = (double)greenCount / _positions.Count;
+            if (greenRatio < 0.25)
+            {
+                return 0.004;
+            }
+            if (greenRatio < 0.5)
+            {
+                return 0.005;
+            }
+            if (greenRatio < 0.75)
+            {
+                return 0.0075;
+            }
+            return 0.01;
+
         }
 
         public bool NoActionRecorded()
@@ -183,7 +183,7 @@ namespace TradingBotWPF.Manager
             _lock.EnterReadLock();
             try
             {
-                return LastTransaction.Subtract(DateTime.Now.AddMinutes(-30)).Nanoseconds > 0;
+                return DateTime.Now.Subtract(LastTransaction).Minutes >= 30;
             }
             finally
             {

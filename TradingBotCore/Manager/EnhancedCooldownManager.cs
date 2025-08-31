@@ -3,8 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Serilog;
+using TradingBotCore.Manager;
 
-namespace TradingBotWPF.Manager
+namespace TradingBotCore.Manager
 {
     /// <summary>
     /// Erweiterte Cooldown-Information für UI-Anzeige

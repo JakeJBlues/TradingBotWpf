@@ -5,7 +5,7 @@ using System.IO;
 using System.Text.Json;
 using Serilog;
 
-namespace TradingBotWPF.Entities
+namespace TradingBotCore.Entities
 {
     /// <summary>
     /// Definiert eine Kategorie für Trading-Symbole mit spezifischen Risiko- und Positionsregeln

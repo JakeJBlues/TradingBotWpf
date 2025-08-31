@@ -13,24 +13,30 @@ using OKX.Net.Clients;
 using TradingBotWPF;
 using OKX.Net.Objects.Account;
 using System.IO;
-using TradingBotWPF.Interfaces;
-using TradingBotWPF.Manager;
-using TradingBotWPF.Entities;
-using TradingBotWPF.Strategies;
-using TradingBotWPF.Helper;
+using TradingBotCore.Interfaces;
+using TradingBotCore.Manager;
+using TradingBotCore.Entities;
+using TradingBotCore.Strategies;
+using TradingBotCore.Helper;
+using Newtonsoft.Json;
+using System.Windows.Controls;
+using OKX.Net.Objects.Market;
+using TradingBotCore;
+using TradingBotCore.Helper;
 
 namespace TradingBot
 {
     /// <summary>
-    /// Vollständiger TradingBot mit 30-Tage-High Filter, RSI-30Min Filter und SubAccount Transfer-Funktionen
+    /// Vollständiger TradingBot mit 1-Year-High-High Filter, RSI-30Min Filter und SubAccount Transfer-Funktionen
     /// </summary>
     public class TradingBotEngine
     {
-        private const decimal Val1 = 750m;
+        public decimal Val1 { get; set; } = Login.MaximalTradingBudget;
         #region Private Fields
         private readonly TradingCooldownManager _cooldownManager;
-        private readonly PositionManager _positionManager;
-        private readonly ProtectedProfitTracker _profitTracker;
+        public PositionManager _positionManager { get; set; }
+        public ProtectedProfitTracker _profitTracker { get; set; }
+        public List<TradingPosition> RemovedTradingPositions { get; set; } = new List<TradingPosition>();
         private readonly TradingBlacklistManager _blacklistManager;
 
         private OKXRestClient _client;
@@ -44,8 +50,8 @@ namespace TradingBot
         private readonly AutoTrimStack<double> _priceStack;
 
         // 30-Tage-High Filter Konfiguration
-        private readonly decimal _thirtyDayHighThreshold = 0.95m; // 90% des 30-Tage-Highs
-        private readonly bool _enableThirtyDayHighFilter = true; // Filter aktiviert
+        private readonly decimal _oneYearHighThreshold = 0.98m; // 98% des 1-Year-Highs
+        private readonly bool _enableOneYearHighFilter = true; // Filter aktiviert
 
         // RSI Filter Konfiguration (30 Minuten Basis)
         private readonly decimal _rsiThreshold = 70m; // RSI Schwellenwert
@@ -85,7 +91,7 @@ namespace TradingBot
             await LoadAndFilterSymbolsAsync();
 
             Log.Information("🔧 TradingBot Engine konfiguriert");
-            Log.Information($"🛡️ 30-Tage-High Filter: {(_enableThirtyDayHighFilter ? "AKTIV" : "INAKTIV")} (Schwelle: {_thirtyDayHighThreshold * 100:F0}%)");
+            Log.Information($"🛡️ 1-Year-High Filter: {(_enableOneYearHighFilter ? "AKTIV" : "INAKTIV")} (Schwelle: {_oneYearHighThreshold * 100:F0}%)");
             Log.Information($"📊 RSI-30Min Filter: {(_enableRsiFilter ? "AKTIV" : "INAKTIV")} (Schwelle: {_rsiThreshold}, Periode: {_rsiPeriod})");
         }
 
@@ -172,6 +178,7 @@ namespace TradingBot
                 if (!balanceResponse.Success || balanceResponse.Data?.Details == null)
                 {
                     Log.Error("❌ Konnte Konto-Balance nicht abrufen");
+                    await Task.Delay(Login.NoSuccessDelay);
                     return false;
                 }
 
@@ -204,6 +211,10 @@ namespace TradingBot
                             Log.Information($"✅ SubAccount '{subAccountName}' gefunden");
                         }
                     }
+                    else
+                    {
+                        await Task.Delay(Login.NoSuccessDelay);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -234,6 +245,7 @@ namespace TradingBot
                 {
                     Log.Error($"❌ Transfer fehlgeschlagen: {transferResponse.Error?.Message ?? "Unbekannter Fehler"}");
                     Log.Error($"Error Code: {transferResponse.Error?.Code}");
+                    await Task.Delay(Login.NoSuccessDelay);
                     return false;
                 }
             }
@@ -265,6 +277,7 @@ namespace TradingBot
                     return false;
                 }
 
+                await Task.Delay(Login.NoSuccessDelay);
                 var eurBalance = balanceResponse.Data.Details
                     .FirstOrDefault(d => d.Asset == "EUR")?.AvailableBalance ?? 0m;
 
@@ -334,6 +347,7 @@ namespace TradingBot
                 else
                 {
                     Log.Error($"❌ Rückholung fehlgeschlagen: {transferResponse.Error?.Message ?? "Unbekannter Fehler"}");
+                    await Task.Delay(Login.NoSuccessDelay);
                     return false;
                 }
             }
@@ -371,6 +385,7 @@ namespace TradingBot
                 else
                 {
                     Log.Information("📋 Keine SubAccounts gefunden");
+                    await Task.Delay(Login.NoSuccessDelay);
                     return new List<string>();
                 }
             }
@@ -384,34 +399,35 @@ namespace TradingBot
 
         #region Private Methods - Filter Functions
         /// <summary>
-        /// Prüft ob der aktuelle Preis zu nah am 30-Tage-High liegt
+        /// Prüft ob der aktuelle Preis zu nah am 1-TYear-High liegt
         /// </summary>
-        private async Task<bool> IsNear30DayHighAsync(string symbol, decimal currentPrice, decimal threshold = 0.99m)
+        private async Task<bool> IsNear1YearHighAsync(string symbol, decimal currentPrice, decimal threshold = 0.98m)
         {
             try
             {
-                if (!_enableThirtyDayHighFilter)
+                if (!_enableOneYearHighFilter)
                     return false;
 
                 var endTime = DateTime.UtcNow;
-                var startTime = endTime.AddDays(-30);
+                var startTime = endTime.AddYears(-1);
 
                 // 30-Tage Klines abrufen (täglich)
                 var klinesResponse = await _client.UnifiedApi.ExchangeData.GetKlinesAsync(
                     symbol,
-                    KlineInterval.OneMinute,
+                    KlineInterval.OneMonth,
                     startTime,
                     endTime
                 );
 
                 if (!klinesResponse.Success || !klinesResponse.Data.Any())
                 {
-                    Log.Warning($"⚠️ Konnte 30-Tage Daten für {symbol} nicht abrufen");
+                    Log.Warning($"⚠️ Konnte 1-Jahr Daten für {symbol} nicht abrufen");
+                    await Task.Delay(Login.NoSuccessDelay);
                     return false; // Bei Unsicherheit nicht blockieren
                 }
 
                 // Höchstpreis der letzten 30 Tage ermitteln
-                var thirtyDayHigh = klinesResponse.Data.Max(k => k.HighPrice);
+                var thirtyDayHigh = klinesResponse.Data.Max(k => k.ClosePrice);
 
                 // Schwellenwert berechnen
                 var priceThreshold = thirtyDayHigh * threshold;
@@ -421,19 +437,19 @@ namespace TradingBot
                 if (isNearHigh)
                 {
                     var percentageOfHigh = (currentPrice / thirtyDayHigh) * 100;
-                    Log.Information($"🚫 {symbol}: Zu nah am 30T-High - Aktuell: {currentPrice:F6}, 30T-High: {thirtyDayHigh:F6} ({percentageOfHigh:F1}%)");
+                    Log.Information($"🚫 {symbol}: Zu nah am 1Y-High - Aktuell: {currentPrice:F6}, 1Y-High: {thirtyDayHigh:F6} ({percentageOfHigh:F1}%)");
                 }
                 else
                 {
                     var percentageOfHigh = (currentPrice / thirtyDayHigh) * 100;
-                    Log.Debug($"✅ {symbol}: 30T-High OK - Aktuell bei {percentageOfHigh:F1}% des 30T-Highs");
+                    Log.Debug($"✅ {symbol}: 30T-High OK - Aktuell bei {percentageOfHigh:F1}% des 1Y-Highs");
                 }
 
                 return isNearHigh;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, $"❌ Fehler beim 30-Tage-High Check für {symbol}");
+                Log.Error(ex, $"❌ Fehler beim 1Y-High Check für {symbol}");
                 return false; // Bei Fehler nicht blockieren
             }
         }
@@ -449,12 +465,58 @@ namespace TradingBot
                     return false;
 
                 var endTime = DateTime.UtcNow;
-                var startTime = endTime.AddMinutes(-30); // Exakt 30 Minuten für RSI-Berechnung
+                var minutes = 0;
+                switch (Login.KlineIntervalLength) // KlineInterval.FiveMinutes
+                {
+                    case KlineInterval.OneMinute:
+                        minutes = 1;
+                        break;
+                    case KlineInterval.ThreeMinutes:
+                        minutes = 3;
+                        break;
+                    case KlineInterval.FiveMinutes:
+                        minutes = 5;
+                        break;
+                    case KlineInterval.FifteenMinutes:
+                        minutes = 15;
+                        break;
+                    case KlineInterval.ThirtyMinutes:
+                        minutes = 30;
+                        break;
+                    case KlineInterval.OneHour:
+                        minutes = 60;
+                        break;
+                    case KlineInterval.TwoHours:
+                        minutes = 120;
+                        break;
+                    case KlineInterval.FourHours:
+                        minutes = 240;
+                        break;
+                    case KlineInterval.SixHours:
+                        minutes = 360;
+                        break;
+                    case KlineInterval.TwelveHours:
+                        minutes = 720;
+                        break;
+                    case KlineInterval.OneDay:
+                        minutes = 1440;
+                        break;
+                    case KlineInterval.OneWeek:
+                        minutes = 10080;
+                        break;
+                    case KlineInterval.OneMonth:
+                        minutes = 43200; // ca. 30 Tage
+                        break;
+                    default:
+                        minutes = 5; // Standard auf 5 Minuten setzen
+                        break;
+                }
+                var startTime = endTime.AddMinutes(-30 * minutes); // Exakt 30 Minuten für RSI-Berechnung
 
                 // 1-Minuten Klines für die letzten 30 Minuten abrufen
                 var klinesResponse = await _client.UnifiedApi.ExchangeData.GetKlinesAsync(
                     symbol,
-                    KlineInterval.OneMinute,
+                    Login.KlineIntervalLength,
                     startTime,
                     endTime
                 );
@@ -462,6 +524,7 @@ namespace TradingBot
                 if (!klinesResponse.Success || !klinesResponse.Data.Any())
                 {
                     Log.Warning($"⚠️ Konnte 30-Minuten Daten für RSI-Berechnung bei {symbol} nicht abrufen");
+                    await Task.Delay(Login.NoSuccessDelay);
                     return false; // Bei Unsicherheit nicht blockieren
                 }
 
@@ -549,7 +612,7 @@ namespace TradingBot
         {
             try
             {
-                await Task.Delay(2000); // Kurz warten bis Transfer verarbeitet wurde
+                await Task.Delay(Login.NoSuccessDelay); // Kurz warten bis Transfer verarbeitet wurde
 
                 var balanceResponse = await _client.UnifiedApi.Account.GetAccountBalanceAsync();
                 if (balanceResponse.Success && balanceResponse.Data?.Details != null)
@@ -565,6 +628,10 @@ namespace TradingBot
                         var budgetStatus = _profitTracker.GetBudgetStatus();
                         Log.Information($"📊 Verbleibendes Trading Budget: {budgetStatus.AvailableBudget:F2} EUR");
                     }
+                }
+                else
+                {
+                    await Task.Delay(Login.NoSuccessDelay);
                 }
             }
             catch (Exception ex)
@@ -582,6 +649,7 @@ namespace TradingBot
             var symbolsResponse = await _client.UnifiedApi.ExchangeData.GetSymbolsAsync(InstrumentType.Spot);
             if (!symbolsResponse.Success)
             {
+                await Task.Delay(Login.NoSuccessDelay);
                 throw new Exception($"Fehler beim Laden der Symbole: {symbolsResponse.Error}");
             }
 
@@ -650,6 +718,7 @@ namespace TradingBot
                     }
                     else
                     {
+                        await Task.Delay(Login.NoSuccessDelay);
                         Log.Error($"❌ Initial-Verkauf Fehler {item.Asset}: {sellResponse.Error}");
                     }
                 }
@@ -709,7 +778,7 @@ namespace TradingBot
                     }
 
                     // Kurze Pause zwischen Durchläufen
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                    await Task.Delay(TimeSpan.FromSeconds(0.1), cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -717,7 +786,7 @@ namespace TradingBot
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "❌ Fehler in Trading-Schleife");
+                    Log.Error(ex, $"❌ Fehler in Trading-Schleife {ex.Message}");
                     await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
                 }
             }
@@ -736,13 +805,16 @@ namespace TradingBot
 
                 var klinesResponse = await _client.UnifiedApi.ExchangeData.GetKlinesAsync(
                     symbol,
-                    KlineInterval.OneMinute,
+                    KlineInterval.FiveMinutes,
                     startTime,
                     endTime
                 );
 
                 if (!klinesResponse.Success || !klinesResponse.Data.Any())
+                {
+                    await Task.Delay(Login.NoSuccessDelay);
                     continue;
+                }
 
                 var high = klinesResponse.Data.Max(k => k.HighPrice);
                 var low = klinesResponse.Data.Min(k => k.LowPrice);
@@ -753,15 +825,15 @@ namespace TradingBot
 
                 var diffPercent = ((high - low) / low) * 100;
 
-                if (diffPercent >= 0.5m || volume > 500)
+                if (volume > 500)
                     volatileResults.Add((symbol, high, low, diffPercent, volume));
             }
 
             var topResults = volatileResults
                 .OrderByDescending(r => r.DiffPercent)
                 .ThenByDescending(r => r.Volume)
-                .Where(r => r.DiffPercent >= 0.5m || r.Volume > 500)
-                .Take(25) // Top 15 volatile Symbole
+                .Where(r => r.DiffPercent >= 0.5m || r.Volume > 100)
+                .Take(50) // Top 15 volatile Symbole
                 .ToList();
 
             Log.Information($"📈 {topResults.Count} volatile Symbole gefunden");
@@ -783,10 +855,9 @@ namespace TradingBot
                 if (budgetStatus.AvailableTradingBudget < 50m)
                 {
                     Log.Information($"⚠️ Trading pausiert: Budget unter 50 EUR ({budgetStatus.AvailableTradingBudget:F2} EUR)");
-                    ShouldBuy = true; // Kaufentscheidungen erlauben
+                    ShouldBuy = Login.ShouldBuyAfterBudget; // Kaufentscheidungen erlauben
                     break;
                 }
-
                 foreach (var entry in volatileResults.Except(processed))
                 {
                     if (cancellationToken.IsCancellationRequested)
@@ -830,16 +901,19 @@ namespace TradingBot
 
                 var response = await _client.UnifiedApi.ExchangeData.GetTickerAsync(symbol);
                 if (!response.Success)
+                {
+                    await Task.Delay(Login.NoSuccessDelay);
                     return false;
+                }
 
                 var currentPrice = response.Data.LastPrice;
                 var existingPosition = _positionManager.GetPositionBySymbol(symbol);
 
                 // FALL 1: Average-Down für bestehende Position
-                //if (existingPosition != null)
-                //{
-                //    return await HandleAverageDownAsync(existingPosition, (decimal)currentPrice, symbol);
-                //}
+                if (existingPosition != null)
+                {
+                    return await HandleAverageDownAsync(existingPosition, (decimal)currentPrice, symbol);
+                }
 
                 // FALL 2: Neue Position erstellen
                 if (_positionManager.HasPositionForAsset(symbol))
@@ -928,6 +1002,7 @@ namespace TradingBot
             }
             else
             {
+                await Task.Delay(Login.NoSuccessDelay);
                 Log.Error($"❌ Average-Down Order für {symbol} fehlgeschlagen: {buyResponse.Error}");
                 _profitTracker.ReleaseBudgetFromSale(additionalInvestment, 0, $"{symbol}_AVGDOWN_FAILED");
                 return false;
@@ -937,7 +1012,7 @@ namespace TradingBot
         private async Task<bool> HandleNewPositionAsync(string symbol, decimal currentPrice)
         {
             // ✅ 30-Tage-High Filter anwenden
-            if (await IsNear30DayHighAsync(symbol, currentPrice, _thirtyDayHighThreshold))
+            if (await IsNear1YearHighAsync(symbol, currentPrice, _oneYearHighThreshold))
             {
                 Log.Debug($"🚫 Kauf von {symbol} blockiert - zu nah am 30-Tage-High");
                 return false;
@@ -951,12 +1026,26 @@ namespace TradingBot
             }
 
             // Prüfe Trading-Strategie
-            var candles = await _client.UnifiedApi.ExchangeData.GetKlinesAsync(symbol, KlineInterval.OneMinute);
+            var candles = await _client.UnifiedApi.ExchangeData.GetKlinesAsync(symbol, Login.KlineIntervalLength);
             if (!candles.Success || !candles.Data.Any())
+            {
+                await Task.Delay(Login.NoSuccessDelay);
                 return false;
+            }
+
+            var candlesConfirmation = candles;
+            if (Login.VolalityConfirmation)
+            {
+                candlesConfirmation = await _client.UnifiedApi.ExchangeData.GetKlinesAsync(symbol, Login.KlineIntervalLength);
+                if (!candlesConfirmation.Success || !candlesConfirmation.Data.Any())
+                {
+                    await Task.Delay(Login.NoSuccessDelay);
+                    return false;
+                }
+            }
 
             var volatitiyScanner = new VolatilityAnalyzer();
-            var result = volatitiyScanner.HasSufficientVolatility(candles.Data);
+            var result = volatitiyScanner.HasSufficientVolatility(candles.Data, confirmationKlines: candlesConfirmation.Data);
             if (!result)
             {
                 Log.Information($"🚫 Kauf von {symbol} blockiert - Volatilität zu gering");
@@ -981,12 +1070,12 @@ namespace TradingBot
 
             var finalOrderSize = minOrderSize.MinimumOrderSize * 1.001m;
             var requiredEurAmount = finalOrderSize * currentPrice * 1.02m;
-            if (requiredEurAmount <= 15)
+            if (requiredEurAmount <= Login.MaximalTradingBudget * 1.5m)
             {
-                requiredEurAmount *= 10;
-                if (requiredEurAmount < 10)
+                requiredEurAmount *= Login.MinimalTradingPostionSize;
+                if (requiredEurAmount < Login.MinimalTradingPostionSize)
                 {
-                    requiredEurAmount = 10.02m;
+                    requiredEurAmount = Login.MinimalTradingPostionSize * 1.002m;
                 }
             }
 
@@ -1062,6 +1151,7 @@ namespace TradingBot
             {
                 Log.Error($"❌ Kauf-Order für {symbol} fehlgeschlagen: {buyResponse.Error}");
                 _profitTracker.ReleaseBudgetFromSale((decimal)requiredEurAmount, 0, $"{symbol}_FAILED");
+                await Task.Delay(Login.NoSuccessDelay);
                 return false;
             }
         }
@@ -1086,10 +1176,13 @@ namespace TradingBot
 
                 var response = await _client.UnifiedApi.ExchangeData.GetTickerAsync(position.Symbol);
                 if (!response.Success || response.Data == null)
+                {
+                    await Task.Delay(Login.NoSuccessDelay);
                     continue;
+                }
 
                 var currentPrice = response.Data.BestBidPrice;
-                position.UpdateWithActualPrice((decimal)currentPrice);
+                ((EnhancedTradingPosition)position).UpdateWithActualPrice((decimal)currentPrice);
 
                 // Verkaufen wenn Ziel erreicht oder Gewinn möglich
                 if (position.CanSell((decimal)currentPrice, _positionManager.CalculateGreenRatio()))
@@ -1102,18 +1195,18 @@ namespace TradingBot
                     );
                     positionsToRemove.Add(position);
                 }
-                allPL += (double)position.UnrealizedPL;
+                allPL += (double)((EnhancedTradingPosition)position).UnrealizedPL;
                 allInvested += (double)position.TotalInvestedAmount;
             }
 
             var fee = allInvested * 0.001; // 0.1% Handelsgebühr
 
-            var fileName = "D:\\Lotus\\Domino\\data\\domino\\html\\info.html";
+            var fileName = $"D:\\Lotus\\Domino\\data\\domino\\html\\info{Login.FilePreSuffix}.html";
             Log.Information($"📉 Gesamt-PL aller Positionen: {allPL:F2} maximaler Verlust: {-0.08 * allInvested} EUR von investiert {allInvested}");
             File.WriteAllText(fileName, $"<html><body><h1>Gesamt-PL aller Positionen: {allPL:F2} maximaler Verlust: {-0.08 * allInvested} EUR von investiert {allInvested}</h1><Table>");
             foreach (var position in positions.OrderByDescending(p => p.CalculateUnrealizedPL(p.CurrentMarketPrice).UnrealizedPLPercent))
             {
-                File.AppendAllText(fileName, $"<tr><td>{position.Symbol}</td><td>{position.TotalInvestedAmount}</td><td>{(position.CurrentMarketPrice - position.OriginalPurchasePrice) * (decimal)position.OriginalVolume}</td><td>{(position.CurrentMarketPrice - position.OriginalPurchasePrice) * (decimal)position.OriginalVolume / position.TotalInvestedAmount * 100:F2} %</td><td>{position.Volume}</td></tr>");
+                File.AppendAllText(fileName, $"<tr><td>{position.Symbol}</td><td>{position.TotalInvestedAmount}</td><td>{(decimal)position.OriginalVolume}</td><td>{(position.CurrentMarketPrice) * (decimal)position.OriginalVolume / position.TotalInvestedAmount * 100:F2} %</td><td>{position.Volume}</td></tr>");
             }
             File.AppendAllText(fileName, "</body></html>");
 
@@ -1121,7 +1214,14 @@ namespace TradingBot
             //Positionen entfernen
             foreach (var position in positionsToRemove)
             {
+                var rposition = position as EnhancedTradingPosition;
+                RemovedTradingPositions.Add(rposition);
                 _positionManager.RemovePosition(position);
+            }
+            if (positions.Count > 0)
+            {
+                var json = JsonConvert.SerializeObject(this);
+                File.WriteAllText($"D:\\Lotus\\Domino\\data\\domino\\html\\positions{Login.FilePreSuffix}.json", json);
             }
             if (_positionManager.GetPositions().Count == 0)
             {
@@ -1159,10 +1259,13 @@ namespace TradingBot
                     var currentPriceSell = await OrderPriceHelper.GetActualPriceFromOrderAsync(_client, $"{sellResponse.Data.OrderId}");
 
                     var originalInvestmentEUR = position.TotalInvestedAmount;
-                    var actualSaleValueEUR = actualAvailableBalance;
+                    var actualSaleValueEUR = actualAvailableBalance * currentPriceSell;
                     var actualProfit = actualSaleValueEUR - originalInvestmentEUR;
 
-                    _profitTracker.ReleaseBudgetFromSale(originalInvestmentEUR, actualSaleValueEUR, position.Symbol);
+                    if (!Login.ShouldBuyAfterBudget)
+                    {
+                        _profitTracker.ReleaseBudgetFromSale(originalInvestmentEUR, actualSaleValueEUR, position.Symbol);
+                    }
 
                     Log.Information($"=== ✅ VERKAUF ERFOLGREICH ===");
                     Log.Information($"Symbol: {position.Symbol}");
@@ -1187,6 +1290,7 @@ namespace TradingBot
                 else
                 {
                     Log.Error($"❌ Verkaufsfehler {position.Symbol}: {sellResponse.Error}");
+                    await Task.Delay(Login.NoSuccessDelay);
                     return (false, 0);
                 }
             }
@@ -1217,6 +1321,10 @@ namespace TradingBot
                             var expectedSellValue = position.High * (decimal)position.Volume;
                             expectedProfit += expectedSellValue - position.TotalInvestedAmount;
                         }
+                        else
+                        {
+                            await Task.Delay(Login.NoSuccessDelay);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1232,9 +1340,9 @@ namespace TradingBot
             Log.Information($"🎯 Auslastung: {(budgetStatus.TotalInvested / budgetStatus.InitialBudget * 100):F1}%");
 
             // Filter-Status anzeigen
-            if (_enableThirtyDayHighFilter)
+            if (_enableOneYearHighFilter)
             {
-                Log.Information($"🛡️ 30-Tage-High Filter: AKTIV (Schwelle: {_thirtyDayHighThreshold * 100:F0}%)");
+                Log.Information($"🛡️ 30-Tage-High Filter: AKTIV (Schwelle: {_oneYearHighThreshold * 100:F0}%)");
             }
             else
             {
@@ -1367,7 +1475,7 @@ namespace TradingBot
         /// </summary>
         public (bool Enabled, decimal Threshold) GetThirtyDayHighFilterStatus()
         {
-            return (_enableThirtyDayHighFilter, _thirtyDayHighThreshold);
+            return (_enableOneYearHighFilter, _oneYearHighThreshold);
         }
 
         /// <summary>

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Windows.Media;
-using TradingBotWPF.Entities;
+using TradingBotCore.Entities;
 /// Erweiterte TradingPosition mit INotifyPropertyChanged für UI-Binding
 /// </summary>
 public class EnhancedTradingPosition : TradingPosition, INotifyPropertyChanged
@@ -22,7 +22,7 @@ public class EnhancedTradingPosition : TradingPosition, INotifyPropertyChanged
     public void InitializeWithEstimatedPrice(decimal estimatedPrice, double volume, decimal investedAmount)
     {
         EstimatedPrice = estimatedPrice;
-        ActualPrice = 0; // Wird später gesetzt
+        ActualPrice = EstimatedPrice; // Wird später gesetzt
         HasActualPrice = false;
 
         // Verwende erstmal geschätzten Preis
@@ -50,31 +50,23 @@ public class EnhancedTradingPosition : TradingPosition, INotifyPropertyChanged
         PurchasePrice = (PurchasePrice + CurrentMarketPrice) / 2;
 
         // Average-Down Trigger basierend auf ECHTEM Preis
-        NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * 0.01m);
+        NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * 0.02m);
     }
 
     // Live-Preis-Properties
-    public decimal CurrentMarketPrice
+    public override void notifiyUI()
     {
-        get => _currentMarketPrice;
-        set
-        {
-            var oldPrice = _currentMarketPrice;
-            _currentMarketPrice = value;
-            _isPriceRising = value > oldPrice && oldPrice > 0;
-            _lastPriceUpdate = DateTime.UtcNow;
-
-            OnPropertyChanged(nameof(CurrentMarketPrice));
-            OnPropertyChanged(nameof(CurrentMarketPriceFormatted));
-            OnPropertyChanged(nameof(UnrealizedPL));
-            OnPropertyChanged(nameof(UnrealizedPLPercent));
-            OnPropertyChanged(nameof(UnrealizedPLFormatted));
-            OnPropertyChanged(nameof(ProfitLossColor));
-            OnPropertyChanged(nameof(CanSellNow));
-            OnPropertyChanged(nameof(SellIndicator));
-            OnPropertyChanged(nameof(PriceChangeDirection));
-            OnPropertyChanged(nameof(LastPriceUpdateFormatted));
-        }
+        OnPropertyChanged(nameof(CurrentMarketPrice));
+        OnPropertyChanged(nameof(CurrentMarketPriceFormatted));
+        OnPropertyChanged(nameof(UnrealizedPL));
+        OnPropertyChanged(nameof(UnrealizedPLPercent));
+        OnPropertyChanged(nameof(UnrealizedPLFormatted));
+        OnPropertyChanged(nameof(ProfitLossColor));
+        OnPropertyChanged(nameof(CanSellNow));
+        OnPropertyChanged(nameof(SellIndicator));
+        OnPropertyChanged(nameof(PriceChangeDirection));
+        OnPropertyChanged(nameof(LastPriceUpdateFormatted));
+        base.notifiyUI();
     }
 
     // Berechnete Properties für UI
@@ -86,6 +78,7 @@ public class EnhancedTradingPosition : TradingPosition, INotifyPropertyChanged
     public new (decimal UnrealizedPL, decimal UnrealizedPLPercent) CalculateUnrealizedPL(decimal currentPrice)
     {
         CurrentMarketPrice = currentPrice;
+        ActualPrice = currentPrice; // Setze tatsächlichen Preis
         return base.CalculateUnrealizedPL(currentPrice);
     }
 

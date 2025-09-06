@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Serilog;
+using TradingBotCore.Interfaces.Manager;
 
 namespace TradingBotCore.Manager
 {
     // Interface für Trading-Strategien
     // NEU: Blacklist-Manager für unerwünschte Trading-Symbole
-    public class TradingBlacklistManager
+    public class TradingBlacklistManager : ITradingBlacklistManager
     {
         private readonly HashSet<string> _blacklistedSymbols = new();
         private readonly HashSet<string> _blacklistedAssets = new();

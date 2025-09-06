@@ -13,20 +13,28 @@ namespace TradingBotCore
 {
     public class Login
     {
-        public const string FilePreSuffix = "";
-        public const decimal MaximalTradingBudget = 750m;
+        public const string FilePreSuffix = "3";
+        public const decimal MaximalTradingBudget = 500m;
         public const decimal MinimalTradingPostionSize = 10m; // Minimale Positionsgröße in EUR
         public const int VolatilityKindels = 5; // Anzahl der Perioden für die Volatilitätsberechnung
-        public const bool ShouldBuyAfterBudget = true;
+        public const bool ShouldBuyAfterBudget = false;
         public const KlineInterval KlineIntervalLength = KlineInterval.OneMinute;
         public const bool VolalityConfirmation = false;
         public const bool AverageDownEnabled = true;
         public const int NoSuccessDelay = 2000;
+        public const int MaxRun = 3;
+        public static int BudgetDownCounter { get;private set; } = 0;
 
+        public static bool RunTradingLoop => BudgetDownCounter < MaxRun;
 
         public static OKXRestClient Credentials()
         {
-            switch (FilePreSuffix)
+            return Credentials(FilePreSuffix);
+        }
+
+        public static OKXRestClient Credentials(string prefix)
+        {
+            switch (prefix)
             {
                 case "":
                     return new OKXRestClient(options =>
@@ -52,10 +60,17 @@ namespace TradingBotCore
                         options.ApiCredentials = new ApiCredentials("8c8ea1b7-1323-4883-b749-671aa3ac76fe", "808DB7EDD897AADEFB908D948563B579", "oGlennyweg2311!x");
                         options.Environment = OKXEnvironment.Europe;
                     });
-
-
+                default:
+                    throw new Exception("No valid prefix provided!" + prefix);
             }
         }
+
+        public static void IncreaseBudgetDownCounter()
+        {
+            BudgetDownCounter++;
+        }
+
+
     }
 }
 

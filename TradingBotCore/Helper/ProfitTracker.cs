@@ -4,11 +4,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Serilog;
 using TradingBotCore.Entities;
+using TradingBotCore.Interfaces;
 
 namespace TradingBotCore.Helper
 {
     // Erweiterte Profit-Tracking-Klasse mit strikter Trading-Budget-Kontrolle
-    public class ProfitTracker
+    public class ProfitTracker : IProfitTracker
     {
         private decimal _initialBalance = 0;
         private decimal _totalRealizedProfit = 0;

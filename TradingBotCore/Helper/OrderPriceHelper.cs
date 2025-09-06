@@ -4,13 +4,14 @@ using OKX.Net.Clients;
 using OKX.Net.Enums;
 using Serilog;
 using TradingBotCore;
+using TradingBotCore.Interfaces;
 
 namespace TradingBotCore.Helper
 {
     /// <summary>
     /// Einfache Integration von Methode 1 in Ihren bestehenden Bot
     /// </summary>
-    public static class OrderPriceHelper
+    public class OrderPriceHelper : IOrderPriceHelper
     {
         /// <summary>
         /// Führt Buy-Order aus und ermittelt den tatsächlichen Kaufpreis (Methode 1)

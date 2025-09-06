@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TradingBotCore.Interfaces;
 using static TradingBotCore.Helper.ProtectedProfitTracker;
 
 namespace TradingBotCore.Helper
@@ -9,7 +10,7 @@ namespace TradingBotCore.Helper
     /// <summary>
     /// Erweiterte Profit-Tracker mit striktem Profit-Schutz
     /// </summary>
-    public class ProtectedProfitTracker : ProfitTracker
+    public class ProtectedProfitTracker : ProfitTracker, IProtectedProfitTracker
     {
         private decimal _initialTradingBudget = 0;
         private decimal _maxTradingBudget = 0; // Wird niemals überschritten

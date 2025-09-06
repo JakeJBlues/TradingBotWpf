@@ -4,7 +4,7 @@ using System;
 using System.Linq;
 using TradingBotCore;
 
-public class VolatilityCheckResult
+public class VolatilityCheckResult : IVolatilityCheckResult
 {
     public bool MeetsVolatilityRequirement { get; set; }
     public bool MeetsDistributionRequirement { get; set; }

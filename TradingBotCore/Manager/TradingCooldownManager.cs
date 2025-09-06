@@ -3,11 +3,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Serilog;
+using TradingBotCore.Interfaces.Manager;
 
 namespace TradingBotCore.Manager
 {
     // Thread-sichere Cooldown-Verwaltung mit Verkaufssperre
-    public class TradingCooldownManager
+    public class TradingCooldownManager : ITradingCooldownManager
     {
         private readonly ConcurrentDictionary<string, DateTime> _lastBuyTimes = new();
         private readonly ConcurrentDictionary<string, DateTime> _lastSellTimes = new();

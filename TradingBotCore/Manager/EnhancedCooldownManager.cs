@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Serilog;
-using TradingBotCore.Manager;
+using TradingBotCore.Interfaces.Manager;
 
 namespace TradingBotCore.Manager
 {
@@ -30,7 +30,7 @@ namespace TradingBotCore.Manager
     /// <summary>
     /// Erweiterte Trading-Cooldown-Manager mit vollständiger UI-Integration
     /// </summary>
-    public class EnhancedTradingCooldownManager : TradingCooldownManager
+    public class EnhancedTradingCooldownManager : TradingCooldownManager, IEnhancedTradingCooldownManager
     {
         // Zusätzliche Tracking für UI
         private readonly ConcurrentDictionary<string, DateTime> _lastGlobalActions = new();

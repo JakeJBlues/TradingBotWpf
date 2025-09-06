@@ -18,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using TradingBot;
 using TradingBotCore;
+using TradingBotCore.Entitites;
 using TradingBotCore.Helper;
 using TradingBotCore.Manager;
 
@@ -1044,18 +1045,7 @@ namespace TradingBotWPF
         public bool AverageDownEnabled { get; set; } = true;
     }
 
-    public class TradingBotConfiguration
-    {
-        public string ApiKey { get; set; }
-        public string Secret { get; set; }
-        public string Passphrase { get; set; }
-        public TimeSpan BuyCooldown { get; set; }
-        public TimeSpan SellCooldown { get; set; }
-        public TimeSpan GlobalCooldown { get; set; }
-        public TimeSpan SellLockout { get; set; }
-        public bool AverageDownEnabled { get; set; } = true;
-        public decimal BaseInvestmentAmount { get; internal set; } = 10.0m;
-    }
+    
 
     public class CustomUISink : Serilog.Core.ILogEventSink
     {

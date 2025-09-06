@@ -1,14 +1,16 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text.Json.Serialization;
-using Serilog;
 using TradingBotCore;
+using TradingBotCore.Interfaces;
 
 namespace TradingBotCore.Entities
 {
     // Erweiterte Thread-sichere Position-Verwaltung mit Average-
-    public class TradingPosition
+    public class TradingPosition : ITradingPosition
     {
         public string Symbol { get; set; }
         public decimal High { get; set; }
@@ -69,6 +71,7 @@ namespace TradingBotCore.Entities
 
         public virtual void notifiyUI()
         {
+            OnPropertyChanged(nameof(CurrentMarketPrice));            
         }
 
         // Prüft ob Average-Down ausgelöst werden soll
@@ -198,6 +201,12 @@ namespace TradingBotCore.Entities
         {
             AverageDownEnabled = false;
             Log.Information($"Average-Down für {Symbol} deaktiviert. Grund: {reason}");
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

@@ -47,7 +47,7 @@ public class EnhancedTradingPosition : TradingPosition, INotifyPropertyChanged
         }
 
         // ✅ Aktualisiere alle Preis-abhängigen Werte mit ECHTEM Preis
-        PurchasePrice = (PurchasePrice + CurrentMarketPrice) / 2;
+        //PurchasePrice = (PurchasePrice + CurrentMarketPrice) / 2;
 
         // Average-Down Trigger basierend auf ECHTEM Preis
         NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * 0.02m);

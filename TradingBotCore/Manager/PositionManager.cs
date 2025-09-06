@@ -5,11 +5,12 @@ using System.Linq;
 using System.Threading;
 using Serilog;
 using TradingBotCore.Entities;
+using TradingBotCore.Interfaces.Manager;
 
 namespace TradingBotCore.Manager
 {
     // PositionManager für nur eine Position pro Krypto
-    public class PositionManager
+    public class PositionManager : IPositionManager
     {
         public ConcurrentDictionary<string, TradingPosition> _positions { get; set; } = new();
         public DateTime LastTransaction { get; set; } = DateTime.MinValue;

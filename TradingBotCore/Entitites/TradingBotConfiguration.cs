@@ -16,6 +16,6 @@ namespace TradingBotCore.Entitites
         public TimeSpan GlobalCooldown { get; set; }
         public TimeSpan SellLockout { get; set; }
         public bool AverageDownEnabled { get; set; } = true;
-        public decimal BaseInvestmentAmount { get; internal set; } = 10.0m;
+        public decimal BaseInvestmentAmount { get; set; } = 10.0m;
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Windows.Media;
+using TradingBotCore;
 using TradingBotCore.Entities;
 /// Erweiterte TradingPosition mit INotifyPropertyChanged für UI-Binding
 /// </summary>
@@ -50,7 +51,8 @@ public class EnhancedTradingPosition : TradingPosition, INotifyPropertyChanged
         //PurchasePrice = (PurchasePrice + CurrentMarketPrice) / 2;
 
         // Average-Down Trigger basierend auf ECHTEM Preis
-        NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * 0.02m);
+        NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * Login.AverageDownStepPercent);
+        notifiyUI();
     }
 
     // Live-Preis-Properties
@@ -66,6 +68,7 @@ public class EnhancedTradingPosition : TradingPosition, INotifyPropertyChanged
         OnPropertyChanged(nameof(SellIndicator));
         OnPropertyChanged(nameof(PriceChangeDirection));
         OnPropertyChanged(nameof(LastPriceUpdateFormatted));
+        OnPropertyChanged(nameof(AverageDownCount));
         base.notifiyUI();
     }
 

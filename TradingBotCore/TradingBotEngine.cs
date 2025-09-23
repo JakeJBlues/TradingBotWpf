@@ -111,7 +111,10 @@ namespace TradingBot
             try
             {
                 // Initial-Setup
-                await PerformInitialSetupAsync();
+                if (Login.InitialSell)
+                {
+                    await PerformInitialSetupAsync();
+                }
 
                 // Hauptschleife
                 await RunTradingLoopAsync(cancellationToken);
@@ -137,7 +140,15 @@ namespace TradingBot
             var positions = _positionManager.GetPositions();
             foreach (var position in positions)
             {
-                ExecuteSellOrderAsync(position, -1);
+                var result = await ExecuteSellOrderAsync(position, -1);
+                if (result.sold)
+                {
+                    await TransferToSubAccountAsync(
+                        result.price,
+                        Login.ProfitAccount
+                    );
+                }
+
                 _positionManager.RemovePosition(position);
             }
         }
@@ -769,10 +780,10 @@ namespace TradingBot
                     {
                         // Trading-Schleife ausführen
                         await ExecuteTradingCycleAsync(volatileResults, cancellationToken);
-
-                        // Verkaufs-Checks
-                        await CheckAndExecuteSellsAsync();
                     }
+
+                    // Verkaufs-Checks immer
+                    await CheckAndExecuteSellsAsync();
 
                     // Cleanup alle 10 Durchläufe
                     if (loopCounter % 10 == 0)
@@ -858,7 +869,7 @@ namespace TradingBot
                 if (budgetStatus.AvailableTradingBudget < 50m || !Login.RunTradingLoop)
                 {
                     Log.Information($"⚠️ Trading pausiert: Budget unter 50 EUR ({budgetStatus.AvailableTradingBudget:F2} EUR)");
-                    ShouldBuy = Login.ShouldBuyAfterBudget; // Kaufentscheidungen erlauben
+                    ShouldBuy = Login.ShouldNotBuyAfterBudget; // Kaufentscheidungen erlauben
                     Login.IncreaseBudgetDownCounter();
                     break;
                 }
@@ -911,11 +922,11 @@ namespace TradingBot
                 }
 
                 var currentPrice = response.Data.LastPrice;
-                var existingPosition = _positionManager.GetPositionBySymbol(symbol);
 
                 // FALL 1: Average-Down für bestehende Position
-                if (existingPosition != null)
+                if (_positionManager.HasPositionForAsset(symbol) && Login.AverageDownEnabled)
                 {
+                    var existingPosition = _positionManager.GetPositionByAsset(symbol.Split("-")[0]);
                     return await HandleAverageDownAsync(existingPosition, (decimal)currentPrice, symbol);
                 }
 
@@ -936,7 +947,7 @@ namespace TradingBot
 
         private async Task<bool> HandleAverageDownAsync(TradingPosition existingPosition, decimal currentPrice, string symbol)
         {
-            return false;
+            //return false;
             if (!existingPosition.ShouldTriggerAverageDown(currentPrice))
                 return false;
 
@@ -1082,6 +1093,7 @@ namespace TradingBot
                     requiredEurAmount = Login.MinimalTradingPostionSize * 1.002m;
                 }
             }
+            requiredEurAmount *= Login.InitialTradingMultiplier;
 
             Log.Information($"=== 🛒 NEUE POSITION VORBEREITUNG ===");
             Log.Information($"Symbol: {symbol}");
@@ -1119,6 +1131,7 @@ namespace TradingBot
             if (actualPrice > 0)
             {
                 Log.Information($"💰 Tatsächlicher Kaufpreis: {actualPrice:F6} EUR (via Order Details)");
+                currentPrice = actualPrice;
             }
             else
             {
@@ -1135,7 +1148,7 @@ namespace TradingBot
                 var newPosition = new TradingPosition
                 {
                     Symbol = symbol,
-                    High = currentPrice * 1.005m,
+                    High = currentPrice * 1.0075m,
                     Processed = DateTime.UtcNow,
                     OrderId = $"{buyResponse.Data?.OrderId}",
                     Volume = volume * 0.999,
@@ -1176,7 +1189,10 @@ namespace TradingBot
                 }
 
                 if (!_cooldownManager.CanSell(position.Symbol))
+                {
+                    Log.Warning($"CoolDown aktiv für {position.Symbol}");
                     continue;
+                }
 
                 var response = await _client.UnifiedApi.ExchangeData.GetTickerAsync(position.Symbol);
                 if (!response.Success || response.Data == null)
@@ -1187,7 +1203,7 @@ namespace TradingBot
 
                 var currentPrice = response.Data.BestBidPrice;
                 position.CurrentMarketPrice = ((decimal)currentPrice);
-
+                Log.Information($"{position.Symbol} {currentPrice} {position.High} {_positionManager.CalculateGreenRatio()}");
                 // Verkaufen wenn Ziel erreicht oder Gewinn möglich
                 if (position.CanSell((decimal)currentPrice, _positionManager.CalculateGreenRatio()))
                 {
@@ -1195,11 +1211,11 @@ namespace TradingBot
                     var eur = (double)position.CalculateUnrealizedPL((decimal)currentPrice).UnrealizedPL;
                     await TransferToSubAccountAsync(
                         (decimal)eur,
-                        "JakeJBlues"
+                        Login.ProfitAccount
                     );
                     positionsToRemove.Add(position);
                 }
-                allPL += (double)(position.CurrentMarketPrice-position.OriginalPurchasePrice);
+                allPL += (double)(position.CurrentMarketPrice - position.OriginalPurchasePrice);
                 allInvested += (double)position.TotalInvestedAmount;
             }
 
@@ -1233,7 +1249,7 @@ namespace TradingBot
             }
         }
 
-        private async Task<(bool, decimal)> ExecuteSellOrderAsync(TradingPosition position, decimal currentPrice)
+        private async Task<(bool sold, decimal price)> ExecuteSellOrderAsync(TradingPosition position, decimal currentPrice)
         {
             try
             {
@@ -1249,9 +1265,11 @@ namespace TradingBot
                 var sellResponse = await _client.UnifiedApi.Trading.PlaceOrderAsync(
                     position.Symbol,
                     OrderSide.Sell,
-                    OrderType.Market,
+                    (currentPrice == -1) ? OrderType.Market : OrderType.PostOnly,
                     tradeMode: TradeMode.Cash,
-                    quantity: (decimal)(asset.AvailableBalance));
+                    quantity: (decimal)(asset.AvailableBalance),
+
+                    price: (currentPrice == -1) ? null : currentPrice);
 
                 if (sellResponse.Success)
                 {
@@ -1266,7 +1284,7 @@ namespace TradingBot
                     var actualSaleValueEUR = actualAvailableBalance * currentPriceSell;
                     var actualProfit = actualSaleValueEUR - originalInvestmentEUR;
 
-                    if (!Login.ShouldBuyAfterBudget)
+                    if (!Login.ShouldNotBuyAfterBudget)
                     {
                         _profitTracker.ReleaseBudgetFromSale(originalInvestmentEUR, actualSaleValueEUR, position.Symbol);
                     }

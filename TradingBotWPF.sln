@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingBotWPF", "TradingBot
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingBotCore", "TradingBotCore\TradingBotCore.csproj", "{956A6F65-77FA-48A0-B5CA-6816389688DD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TradingBotConsole", "TradingBotConsole\TradingBotConsole.csproj", "{61EFFFE2-A971-47CF-A9AD-978AA3D20C2C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{956A6F65-77FA-48A0-B5CA-6816389688DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{956A6F65-77FA-48A0-B5CA-6816389688DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{956A6F65-77FA-48A0-B5CA-6816389688DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61EFFFE2-A971-47CF-A9AD-978AA3D20C2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61EFFFE2-A971-47CF-A9AD-978AA3D20C2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61EFFFE2-A971-47CF-A9AD-978AA3D20C2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61EFFFE2-A971-47CF-A9AD-978AA3D20C2C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

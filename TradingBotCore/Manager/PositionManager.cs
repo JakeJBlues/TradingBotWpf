@@ -155,27 +155,27 @@ namespace TradingBotCore.Manager
             }
             if (NoActionRecorded())
             {
-                return 0.003;
+                return 0.0065;
             }
             if (_positions.Count < 10)
             {
-                return 0.005;
+                return 0.01;
             }
             var greenCount = _positions.Values.Count(p => p.CurrentMarketPrice >= p.OriginalPurchasePrice);
             var greenRatio = (double)greenCount / _positions.Count;
             if (greenRatio < 0.25)
             {
-                return 0.004;
+                return 0.0075;
             }
             if (greenRatio < 0.5)
             {
-                return 0.005;
+                return 0.01;
             }
             if (greenRatio < 0.75)
             {
-                return 0.0075;
+                return 0.0125;
             }
-            return 0.01;
+            return 0.015;
 
         }
 
@@ -184,7 +184,7 @@ namespace TradingBotCore.Manager
             _lock.EnterReadLock();
             try
             {
-                return DateTime.Now.Subtract(LastTransaction).Minutes >= 30;
+                return DateTime.Now.Subtract(LastTransaction).Minutes >= Login.NoActionTakenMinutes;
             }
             finally
             {

@@ -84,7 +84,7 @@ namespace TradingBotCore.Helper
                     // ✅ Average Fill Price ist der tatsächliche Kaufpreis
                     if (order.Price.HasValue && order.Price > 0)
                     {
-                        return (decimal)order.FillPrice;
+                        return (decimal)order.Price;
                     }
 
                     // Falls AverageFillPrice nicht verfügbar, aber Order gefüllt ist

@@ -51,7 +51,7 @@ namespace TradingBotCore.Entities
             TotalInvestedAmount = investedAmount;
 
             // Trigger für ersten Average-Down bei 2% Verlust
-            NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * 0.02m);
+            CalculateNextAverageDownTrigger();
 
             Log.Information($"Position initialisiert für {Symbol}: {price:F6} EUR, Volume: {volume:F4}, Trigger: {NextAverageDownTrigger:F6}");
         }
@@ -71,7 +71,7 @@ namespace TradingBotCore.Entities
 
         public virtual void notifiyUI()
         {
-            OnPropertyChanged(nameof(CurrentMarketPrice));            
+            OnPropertyChanged(nameof(CurrentMarketPrice));
         }
 
         // Prüft ob Average-Down ausgelöst werden soll
@@ -91,7 +91,7 @@ namespace TradingBotCore.Entities
             }
 
             // Prüfe ob Preis unter Trigger gefallen ist
-            bool shouldTrigger = currentPrice <= NextAverageDownTrigger;
+            bool shouldTrigger = currentPrice < NextAverageDownTrigger;
 
             Log.Information($"Average-Down Trigger für {Symbol}: Aktuell {currentPrice:F6} <= Trigger {NextAverageDownTrigger:F6} {shouldTrigger}");
 
@@ -126,9 +126,8 @@ namespace TradingBotCore.Entities
             PurchasePrice = newAveragePrice; // Neuer Durchschnittspreis
             AverageDownCount++;
             LastAverageDownTime = DateTime.UtcNow;
-
-            // Nächsten Trigger berechnen (weitere 1% vom neuen Durchschnitt)
-            NextAverageDownTrigger = newAveragePrice * 0.98m;
+            CalculateNextAverageDownTrigger();
+            notifiyUI();
 
             // WICHTIG: Verkaufsziel (High) bleibt unverändert - das ursprüngliche Ziel!
             // High wird NICHT verändert, damit das ursprüngliche Verkaufsziel bestehen bleibt
@@ -144,6 +143,13 @@ namespace TradingBotCore.Entities
             Log.Information($"Verkaufsziel bleibt: {High:F6} EUR (UNVERÄNDERT)");
 
             return newAveragePrice;
+        }
+
+        private void CalculateNextAverageDownTrigger()
+        {
+
+            // Nächsten Trigger berechnen (weitere 1% vom neuen Durchschnitt)
+            NextAverageDownTrigger = OriginalPurchasePrice * (1 - (AverageDownCount + 1) * Login.AverageDownStepPercent);
         }
 
         // Berechnet aktuellen Profit/Loss
@@ -193,7 +199,7 @@ namespace TradingBotCore.Entities
             if (greenRatio == 0)
                 return currentPrice > High; // Mindestens 0.5% Gewinn
             else
-                return currentPrice > (High / 1.005m) * (decimal)(1 + greenRatio); // Mindestens 0.5% Gewinn
+                return currentPrice > High * ((decimal)(1 + greenRatio) / 1.005m); // Mindestens 0.5% Gewinn
         }
 
         // Deaktiviert weitere Average-Downs

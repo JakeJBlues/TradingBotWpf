@@ -78,7 +78,7 @@ public class VolatilityAnalyzer
             }
         }
 
-        var candlesRaise = candlesAbove >= (Login.VolatilityKindels / 2) && Login.VolalityConfirmation ? (candlesConfimationAbove >= candlesConfimationBelow) : true;
+        var candlesRaise = candlesAbove >= (Login.VolatilityKindels / 2) && Login.VolalityConfirmation ? (candlesConfimationAbove >= candlesConfimationBelow) : candlesAbove >= (Login.VolatilityKindels / 2);
         result.MeetsDistributionRequirement = candlesRaise;
         return result;
     }

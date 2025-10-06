@@ -1,114 +1,151 @@
-﻿using Serilog;
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 using TradingBot;
 using TradingBotCore;
 using TradingBotCore.Entitites;
 using TradingBotCore.Helper;
 using TradingBotCore.Manager;
 
-namespace MinimalTradingLoop
+namespace TradingBotConsole
 {
-    /// <summary>
-    /// Minimale Trading-Schleife mit TradingBotEngine - nur das Nötigste
-    /// </summary>
     class Program
     {
-        private static TradingBotEngine _botEngine;
-        private static CancellationTokenSource _cancellationTokenSource;
-
         static async Task Main(string[] args)
         {
-            // Serilog Konsolen-Logging Setup
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .WriteTo.Console(outputTemplate:
-                    "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                .CreateLogger();
+            // Logging konfigurieren
+            ConfigureLogging();
 
             try
             {
-                Log.Information("🤖 Minimal Trading Loop gestartet");
-                Log.Information($"💰 Budget: {Login.MaximalTradingBudget} EUR | Min Position: {Login.MinimalTradingPostionSize} EUR");
+                // FilePreSuffix aus Kommandozeilenargument holen
+                Login.FilePreSuffix = GetFilePreSuffixFromArgs(args);
 
-                // Bot Setup
-                await InitializeBotAsync();
+                Log.Information("=== TradingBot Console gestartet ===");
+                Log.Information($"FilePreSuffix: {Login.FilePreSuffix}");
+                Log.Information($"Account: {Login.GetActualAccount()}");
 
-                // Abbruch mit Ctrl+C
+                Console.ReadLine();
+                // Client aus Login-Klasse holen mit dem übergebenen Prefix
+                var client = Login.Credentials(Login.FilePreSuffix);
+
+                Log.Information($"✅ OKX Client für Account '{Login.GetActualAccount()}' erstellt");
+
+                // TradingBot Komponenten initialisieren
+                var cooldownManager = CreateCooldownManager();
+                var positionManager = new PositionManager();
+                var profitTracker = new ProtectedProfitTracker();
+                var blacklistManager = new TradingBlacklistManager();
+
+                // TradingBotEngine erstellen
+                var engine = new TradingBotEngine(
+                    cooldownManager,
+                    positionManager,
+                    profitTracker,
+                    blacklistManager
+                );
+
+                // Konfiguration erstellen (diese wird intern vom Engine verwendet, 
+                // aber der Client kommt direkt aus der Login-Klasse)
+                var configuration = new TradingBotConfiguration
+                {
+                    BuyCooldown = TimeSpan.FromMinutes(1),
+                    SellCooldown = TimeSpan.FromMinutes(1),
+                    GlobalCooldown = TimeSpan.FromSeconds(30),
+                    SellLockout = TimeSpan.FromMinutes(5),
+                    AverageDownEnabled = Login.AverageDownEnabled,
+                    BaseInvestmentAmount = Login.MinimalTradingPostionSize
+                };
+
+                // Engine konfigurieren
+                await engine.ConfigureAsync(configuration);
+
+                // CancellationToken für sauberes Beenden
+                using var cts = new CancellationTokenSource();
+
+                // CTRL+C Handler
                 Console.CancelKeyPress += (sender, e) =>
                 {
                     e.Cancel = true;
-                    Log.Information("🛑 Stopp-Signal empfangen - beende Trading Loop...");
-                    _cancellationTokenSource?.Cancel();
+                    Log.Information("🛑 Shutdown Signal empfangen...");
+                    cts.Cancel();
                 };
 
-                Log.Information("🔄 Trading Loop läuft... (Ctrl+C zum Stoppen)");
+                Log.Information("🚀 Starte Trading Loop...");
+                Log.Information("Drücke CTRL+C zum Beenden");
 
                 // Trading Loop starten
-                _cancellationTokenSource = new CancellationTokenSource();
-                await _botEngine.StartAsync(_cancellationTokenSource.Token);
+                await engine.StartAsync(cts.Token);
 
-            }
-            catch (OperationCanceledException)
-            {
-                Log.Information("🛑 Trading Loop gestoppt");
+                Log.Information("✅ TradingBot beendet");
             }
             catch (Exception ex)
             {
-                Log.Fatal(ex, "💥 Kritischer Fehler");
-                Console.WriteLine("\nDrücken Sie eine Taste zum Beenden...");
-                Console.ReadKey();
+                Log.Fatal(ex, "❌ Kritischer Fehler in TradingBot Console");
             }
             finally
             {
-                Log.Information("👋 Programm beendet");
                 Log.CloseAndFlush();
             }
         }
 
-        private static async Task InitializeBotAsync()
+        /// <summary>
+        /// Holt FilePreSuffix aus Kommandozeilenargumenten
+        /// </summary>
+        private static string GetFilePreSuffixFromArgs(string[] args)
         {
-            Log.Information("⚙️ Initialisiere Trading Bot Components...");
+            if (args.Length == 0)
+            {
+                Log.Warning("⚠️ Kein FilePreSuffix angegeben. Verwende Standard: 'UG2'");
+                Log.Information("Usage: TradingBotConsole.exe <FilePreSuffix>");
+                Log.Information("Beispiel: TradingBotConsole.exe UG2");
+                Log.Information("Verfügbare Prefixes: \"\", \"1\", \"2\", \"3\", \"UG\", \"UG1\", \"UG2\", \"UG3\"");
+                return "UG2"; // Standard-Wert
+            }
 
-            // Manager mit Standard-Einstellungen
-            var cooldownManager = new TradingCooldownManager(
-                buyDelay: TimeSpan.FromMinutes(10),
+            string prefix = args[0];
+
+            // Validierung des Prefix
+            var validPrefixes = new[] { "", "1", "2", "3", "UG", "UG1", "UG2", "UG3" };
+            if (!Array.Exists(validPrefixes, p => p == prefix))
+            {
+                Log.Warning($"⚠️ Ungültiger FilePreSuffix: '{prefix}'. Verwende Standard: 'UG2'");
+                Log.Information($"Verfügbare Prefixes: {string.Join(", ", validPrefixes)}");
+                return "UG2";
+            }
+
+            return prefix;
+        }
+
+        /// <summary>
+        /// Erstellt CooldownManager mit Standardwerten
+        /// </summary>
+        private static TradingCooldownManager CreateCooldownManager()
+        {
+            return new TradingCooldownManager(
+                buyDelay: TimeSpan.FromMinutes(1),
                 sellDelay: TimeSpan.FromMinutes(1),
                 globalCooldown: TimeSpan.FromSeconds(30),
                 sellLockoutDuration: TimeSpan.FromMinutes(5)
             );
+        }
 
-            var positionManager = new PositionManager();
-            var profitTracker = new ProtectedProfitTracker();
-            var blacklistManager = new TradingBlacklistManager();
-
-            // TradingBotEngine erstellen
-            _botEngine = new TradingBotEngine(
-                cooldownManager,
-                positionManager,
-                profitTracker,
-                blacklistManager
-            );
-
-            // Minimal-Konfiguration
-            var configuration = new TradingBotConfiguration
-            {
-                ApiKey = "FROM_LOGIN",
-                Secret = "FROM_LOGIN",
-                Passphrase = "FROM_LOGIN",
-                BuyCooldown = TimeSpan.FromMinutes(10),
-                SellCooldown = TimeSpan.FromMinutes(1),
-                GlobalCooldown = TimeSpan.FromSeconds(30),
-                SellLockout = TimeSpan.FromMinutes(5),
-                AverageDownEnabled = Login.AverageDownEnabled,
-                BaseInvestmentAmount = Login.MinimalTradingPostionSize
-            };
-
-            // Engine konfigurieren
-            await _botEngine.ConfigureAsync(configuration);
-
-            Log.Information("✅ Trading Bot bereit");
+        /// <summary>
+        /// Konfiguriert Serilog für Console und File Logging
+        /// </summary>
+        private static void ConfigureLogging()
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.Console(
+                    outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.File(
+                    path: $"logs/tradingbot-{Login.FilePreSuffix}-.log",
+                    rollingInterval: RollingInterval.Day,
+                    outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+                    retainedFileCountLimit: 30)
+                .CreateLogger();
         }
     }
 }

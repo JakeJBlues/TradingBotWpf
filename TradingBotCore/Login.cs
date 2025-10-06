@@ -13,21 +13,22 @@ namespace TradingBotCore
 {
     public class Login
     {
-        public const string FilePreSuffix = "UG2";
-        public const string ProfitAccount = "PeanutsHosting001";//"PeanutsHostingAPI001";
-        public const decimal MaximalTradingBudget = 1000m;
-        public const decimal InitialTradingMultiplier = 2.0m; // Start-Multiplikator für die Positionsgröße
-        public const decimal MinimalTradingPostionSize = 10m; // Minimale Positionsgröße in EUR
-        public const int VolatilityKindels = 15; // Anzahl der Perioden für die Volatilitätsberechnung
-        public const bool ShouldNotBuyAfterBudget = true;
-        public const KlineInterval KlineIntervalLength = KlineInterval.OneMinute;
-        public const bool VolalityConfirmation = false;
-        public const bool AverageDownEnabled = false;
-        public const int NoSuccessDelay = 500;
-        public const bool InitialSell = true;
-        public const int MaxRun = 2;
-        public const int NoActionTakenMinutes = 120;
-        public const decimal AverageDownStepPercent = 0.002m;
+        public static List<string> ApiPrefixes = new List<string> { "", "1", "2", "3", "UG", "UG1", "UG2", "UG3" };
+        public static string FilePreSuffix = "UG3";
+        public static string ProfitAccount = "PeanutsHosting001";//"PeanutsHostingAPI001";
+        public static decimal MaximalTradingBudget = 1000m;
+        public static decimal InitialTradingMultiplier = 2.0m; // Start-Multiplikator für die Positionsgröße
+        public static decimal MinimalTradingPostionSize = 10m; // Minimale Positionsgröße in EUR
+        public static int VolatilityKindels = 3; // Anzahl der Perioden für die Volatilitätsberechnung
+        public static bool ShouldNotBuyAfterBudget = true;
+        public static KlineInterval KlineIntervalLength = KlineInterval.FiveMinutes;
+        public static bool VolalityConfirmation = false;
+        public static bool AverageDownEnabled = false;
+        public static int NoSuccessDelay = 500;
+        public static bool InitialSell = true;
+        public static int MaxRun = 2;
+        public static int NoActionTakenMinutes = 120;
+        public static decimal AverageDownStepPercent = 0.002m;
         public static int BudgetDownCounter { get; private set; } = 0;
 
         public static bool RunTradingLoop => BudgetDownCounter < MaxRun;
@@ -83,6 +84,12 @@ namespace TradingBotCore
                         options.ApiCredentials = new ApiCredentials("d4b6e08b-4bcb-4e1f-86a3-059a7497a2e0", "BD830CC5FB7AEBE4A6B0949A0690FA08", "oGlennyweg2311!x");
                         options.Environment = OKXEnvironment.Europe;
                     });
+                case "UG3":
+                    return new OKXRestClient(options =>
+                    {
+                        options.ApiCredentials = new ApiCredentials("debe740d-2fd8-4543-9726-682aecad45b1", "5E6833062E9DE2B2628DC8C5B1441662", "oGlennyweg2311!x");
+                        options.Environment = OKXEnvironment.Europe;
+                    });
                 default:
                     throw new Exception("No valid prefix provided!" + prefix);
             }
@@ -106,6 +113,8 @@ namespace TradingBotCore
                     return "PeanutsHostingAPI002";
                 case "UG2":
                     return "PeanutsHostingAPI003";
+                case "UG3":
+                    return "PeanutsHostingAPI004";
                 default:
                     throw new Exception("No valid prefix provided!" + FilePreSuffix);
             }

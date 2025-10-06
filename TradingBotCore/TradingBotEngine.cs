@@ -111,10 +111,7 @@ namespace TradingBot
             try
             {
                 // Initial-Setup
-                if (Login.InitialSell)
-                {
-                    await PerformInitialSetupAsync();
-                }
+                await PerformInitialSetupAsync();
 
                 // Hauptschleife
                 await RunTradingLoopAsync(cancellationToken);
@@ -683,7 +680,7 @@ namespace TradingBot
             _blacklistManager.LogBlacklistStatus();
         }
 
-        private async Task PerformInitialSetupAsync()
+        public async Task PerformInitialSetupAsync()
         {
             Log.Information("🔧 Führe Initial-Setup durch...");
 
@@ -694,9 +691,12 @@ namespace TradingBot
                 throw new Exception("Konnte Konto-Balance nicht abrufen");
             }
 
-            // Initial-Verkauf aller bestehenden Assets (außer EUR)
-            await PerformInitialSelloffAsync(asset.Data.Details);
+            if (Login.InitialSell)
+            {
 
+                // Initial-Verkauf aller bestehenden Assets (außer EUR)
+                await PerformInitialSelloffAsync(asset.Data.Details);
+            }
             // Trading-Budget setzen
             await Task.Delay(3000); // Warten bis Verkäufe abgeschlossen
             await SetTradingBudgetAsync();
@@ -1265,7 +1265,7 @@ namespace TradingBot
                 var sellResponse = await _client.UnifiedApi.Trading.PlaceOrderAsync(
                     position.Symbol,
                     OrderSide.Sell,
-                    (currentPrice == -1) ? OrderType.Market : OrderType.PostOnly,
+                    (currentPrice == -1) ? OrderType.Market : OrderType.Limit,
                     tradeMode: TradeMode.Cash,
                     quantity: (decimal)(asset.AvailableBalance),
 

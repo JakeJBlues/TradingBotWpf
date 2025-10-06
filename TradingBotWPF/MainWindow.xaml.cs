@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using Newtonsoft.Json;
 using OKX.Net;
 using OKX.Net.Clients;
+using OKX.Net.Enums;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -302,13 +303,13 @@ namespace TradingBotWPF
         {
             InitializeComponent();
             DataContext = this;
-
+            
             // Initialize Trading Components mit Enhanced Manager
             _cooldownManager = new EnhancedTradingCooldownManager(
                 TimeSpan.FromMinutes(10),
                 TimeSpan.FromSeconds(1),  // Geändert von 0!
                 TimeSpan.FromMilliseconds(30), // Geändert von 1 Mikrosekunde!
-                TimeSpan.FromMinutes(5)
+                TimeSpan.FromMinutes(60)
             );
 
             _positionManager = new PositionManager();
